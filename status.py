@@ -1,11 +1,31 @@
+#!/usr/bin/env python
+
+from __future__ import unicode_literals, division, absolute_import
+
 import evelink
 import requests
 import dataset
 from datetime import datetime
 import sqlite3
+import os.path
+import sys
 
-conn = sqlite3.connect('tmp/rub11-sqlite3-v1.db')
-db = dataset.connect("sqlite:///evetools.db")
+DB_DIR = 'db'
+
+if not os.path.exists(DB_DIR):
+    os.mkdir(DB_DIR)
+
+EVE_DB = 'rub11-sqlite3-v1.db'
+EVE_DB_PATH = os.path.join(DB_DIR, EVE_DB)
+
+if not os.path.exists(EVE_DB_PATH):
+    print("Please download the latest database from http://zofu.no-ip.de/rub11/rub11-sqlite3-v1.db.bz2")
+    print("and place it in the db/ directory")
+    sys.exit(1)
+
+
+conn = sqlite3.connect(EVE_DB_PATH) # Eve online static db
+db = dataset.connect("sqlite:///%s/evetools.db" % DB_DIR) # evetools cache db
 
 
 def to_roman(n):
@@ -56,31 +76,32 @@ def typeid_to_string(uid):
 
 def print_contracts(char, api):
     for k, v in char.contracts().result.iteritems():
-        print k, v
+        print (k, v)
 
 
 def print_industry_jobs(char, api):
+    """List active industry jobs"""
     active_jobs = [v for v in char.industry_jobs().result.values() if v['delivered'] == False]
 
     if not active_jobs: return
 
-    print "Industry Jobs:"
+    print("Industry Jobs:")
 
     for v in active_jobs:
-        print "   %s" % locationid_to_string(v['container_id'])
-        print "      %s | %s | %s" % (activityid_to_string(v['activity_id']),
+        print("   %s" % locationid_to_string(v['container_id']))
+        print("      %s | %s | %s" % (activityid_to_string(v['activity_id']),
                                    typeid_to_string(v['output']['type_id']),
-                                   timestamp_to_string(v['end_ts']))
+                                   timestamp_to_string(v['end_ts'])))
 
 
 def print_orders(char, api):
-    expired_orders = [order for id, order in char.orders().result.iteritems() if order['status'] == 'expired']
-
+    """List active orders"""
+    
     active_orders = [order for id, order in char.orders().result.iteritems() if order['status'] == 'active']
 
     if not active_orders: return
 
-    print "Orders:"
+    print("Orders:")
 
     import locale
     locale.setlocale(locale.LC_ALL, '')
@@ -89,11 +110,11 @@ def print_orders(char, api):
 
     for order in active_orders:
         total_isk += order['price'] * order['amount_left']
-        print "  %-50s  %14s %4d units" % (typeid_to_string(order['type_id']),
+        print("  %-50s  %14s %4d units" % (typeid_to_string(order['type_id']),
                                                  "{0:n} ISK".format(order['price']).replace(',', ' '),
-                                                 order['amount_left'])
+                                                 order['amount_left']))
 
-    print "Total: %10s" % "{0:n} ISK".format(int(total_isk)).replace(',', ' ')
+    print("Total: %10s" % "{0:n} ISK".format(int(total_isk)).replace(',', ' '))
 
 
 def print_assets(char, api):
@@ -143,15 +164,12 @@ def print_charactersheet(char, api):
 
 def main(key_id, verification):
     from evelink.cache.sqlite import SqliteCache
-    evelink_cache = SqliteCache('evelink_cache.db')
+    evelink_cache = SqliteCache('db/evelink_cache.db')
 
     api = evelink.api.API(api_key=(key_id, verification),
                           cache=evelink_cache)
 
     a = evelink.account.Account(api)
-
-    # APIResult(result={94152511: {'corp': {'id': 98095115, 'name': 'The Wizards Of Weed'}, 'id': 94152511, 'name': 'Quintus Corvus'}}, timestamp=1389784547, expires=1389787967)
-    # res = id:character
 
     for char_id in a.characters().result:
         print "-" * 30
@@ -162,9 +180,10 @@ def main(key_id, verification):
 
 
 if __name__ == "__main__":
-    import os.path
     if not os.path.exists('config.yml'):
-        import sys
+        print("config.yml not found")
+        print("please edit config_example.yml and rename it to config.yml")
+
         sys.exit(1)
 
     import yaml
