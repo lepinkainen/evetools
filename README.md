@@ -11,3 +11,6 @@ display status of all characters on the linked API key
 * Skill queue
 * Industry Jobs
 * Market Orders
+
+
+Powered by [evelink by eve-val](https://github.com/eve-val/evelink)
