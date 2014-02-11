@@ -130,7 +130,7 @@ def print_assets(char, api):
 
 
 def print_charactersheet(char, api):
-    # Ccharacter info needs to be fetched from two separate places..
+    # Character info needs to be fetched from two separate places..
     character_sheet = char.character_sheet().result
     character_info = evelink.eve.EVE(api=api).character_info_from_id(char.char_id).result
 
@@ -165,11 +165,11 @@ def print_charactersheet(char, api):
                                       to_roman(skill['level']),
                                       timestamp_to_string(skill['end_ts']), datetime.fromtimestamp(skill['end_ts'])))
 
-def main(key_id, verification):
+def main(apikey):
     from evelink.cache.sqlite import SqliteCache
     evelink_cache = SqliteCache('db/evelink_cache.db')
 
-    api = evelink.api.API(api_key=(key_id, verification),
+    api = evelink.api.API(api_key=apikey,
                           cache=evelink_cache)
 
     a = evelink.account.Account(api)
@@ -192,4 +192,4 @@ if __name__ == "__main__":
     import yaml
     config = yaml.load(file('config.yml'))
 
-    main(config['key'], config['verification'])
+    main((config['key'], config['verification']))
