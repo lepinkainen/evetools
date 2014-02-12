@@ -9,6 +9,7 @@ from datetime import datetime
 import sqlite3
 import os.path
 import sys
+from util import *
 
 DB_DIR = 'db'
 
@@ -31,29 +32,6 @@ conn = sqlite3.connect(EVE_DB_PATH) # Eve online static db
 db = dataset.connect("sqlite:///%s/evetools.db" % DB_DIR) # evetools cache db
 
 
-def to_roman(n):
-    return ['I', 'II', 'III', 'IV', 'V'][n - 1]
-
-
-def timestamp_to_string(timestamp, reverse=False):
-    completion = datetime.fromtimestamp(timestamp)
-    now = datetime.now()
-    if reverse:
-        age = now - completion
-    else:
-        age = completion - now
-    agestr = []
-    if age.days > 0:
-        agestr.append("%dd" % age.days)
-    secs = age.seconds
-    hours, minutes, seconds = secs // 3600, secs // 60 % 60, secs % 60
-    if hours > 0:
-        agestr.append("%02dh" % hours)
-    if minutes > 0:
-        agestr.append("%02dm" % minutes)
-    if seconds > 0:
-        agestr.append("%02ds" % seconds)
-    return " ".join(agestr)
 
 
 def dbquery(sql, uid):
