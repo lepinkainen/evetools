@@ -62,17 +62,17 @@ def print_contracts(char, api):
 
 def print_industry_jobs(char, api):
     """List active industry jobs"""
-    active_jobs = [v for v in char.industry_jobs().result.values() if v['delivered'] == False]
+    active_jobs = [v for v in char.industry_jobs().result.values() if v['delivered'] == False and v['status'] != "failed"]
 
     if not active_jobs: return
 
     print("Industry Jobs:")
 
-    for v in active_jobs:
-        print("   %s" % locationid_to_string(v['container_id']))
-        print("      %s | %s | %s" % (activityid_to_string(v['activity_id']),
-                                   typeid_to_string(v['output']['type_id']),
-                                   timestamp_to_string(v['end_ts'])))
+    for job in active_jobs:
+        print("   %s" % locationid_to_string(job['container_id']))
+        print("      %s | %s | %s" % (activityid_to_string(job['activity_id']),
+                                   typeid_to_string(job['output']['type_id']),
+                                   timestamp_to_string(job['end_ts'])))
 
 
 def print_orders(char, api):
