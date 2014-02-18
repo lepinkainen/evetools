@@ -61,13 +61,83 @@ def typeid_to_string(uid):
     return dbquery("select typeName from invTypes where typeID = %d;", uid)
 
 
+class CharacterFactory(object):
+    @staticmethod
+    def create_character(api, char_id):
+        char = evelink.char.Char(char_id, api)
+        character_sheet = char.character_sheet().result
+        character_info = evelink.eve.EVE(api=api).character_info_from_id(char.char_id).result
+
+        c = Character()
+        c.cid = char_id
+        c.name = character_sheet['name']
+        c.corporation = character_sheet['corp']['name']
+        c.age = character_sheet['create_ts']
+        c.location = character_info['location']
+        c.balance = int(character_sheet['balance'])
+        c.skillpoints = character_sheet['skillpoints']
+        c.clone_skillpoints = character_sheet['clone']['skillpoints']
+        c.skill_queue = char.skill_queue().result
+        c.active_jobs = [v for v in char.industry_jobs().result.values() if v['delivered'] == False]
+        c.active_orders = [order for order in char.orders().result.values() if order['status'] == 'active']
+
+        return c
+
+class Character(object):
+    cid = None
+    name = None
+    corporation = None
+    age = None
+    location = None
+    balance = None
+    skillpoints = None
+    clone_skillpoints = None
+    active_jobs = None
+    active_orders = None
+    skill_queue = None
+
+    def get_balance_formatted(self):
+        import locale
+        locale.setlocale(locale.LC_ALL, '')
+        return "{0:n} ISK".format(self.balance).replace(',', ' ')
+
+
+    def get_skill_queue_items(self):
+        items = []
+        # skill name skill level, time to end, end time
+        for skill in self.skill_queue:
+            items.append(["%s %s" % (typeid_to_string(skill['type_id']), to_roman(skill['level'])),
+                                timestamp_to_string(skill['end_ts']),
+                                datetime.fromtimestamp(skill['end_ts'])])
+
+        return items
+
+    def get_active_jobs_items(self):
+        items = []
+
+        for job in self.active_jobs:
+            items.append([activityid_to_string(job['activity_id']),
+                         typeid_to_string(job['output']['type_id']),
+                         timestamp_to_string(job['end_ts'])])
+
+        return items
+
+
+
 class CharacterSummary(npyscreen.ActionForm):
     """Display a summary of all available characters"""
 
     GRID_WIDTH = 80
 
+    last_updated_field = None
+    character_fields = {}
+
     def while_waiting(self):
-        pass
+        self.last_updated_field.value = datetime.now()
+        for char_id in self.account.characters().result:
+            c = CharacterFactory.create_character(self.parentApp.api, char_id)
+            self.update_character(c)
+        self.display()
 
     def on_ok(self):
         self.parentApp.switchForm(None)
@@ -84,75 +154,99 @@ class CharacterSummary(npyscreen.ActionForm):
     def create(self):
         self.framed = False
 
-
         self.add_handlers({"^T": self.change_forms,
                            "^R": self.display,
                            curses.ascii.ESC: self.on_ok})
 
+        self.account = evelink.account.Account(self.parentApp.api)
 
-        a = evelink.account.Account(self.parentApp.api)
+        self.last_updated_field = self.add(npyscreen.TitleFixedText, name="Last Update", editable=False, width=self.GRID_WIDTH)
+        self.last_updated_field.value = datetime.now()
+        self.separator()
 
-        self.add(npyscreen.FixedText, value=datetime.now(), editable=False, width=self.GRID_WIDTH)
+        # store all character fields for updating
+        self.character_fields = {}
 
-        for char_id in a.characters().result:
-            if self.name == "MAIN":
-                self.display_character(char_id)
-                self.separator()
-            else:
-                self.display_character(char_id)
-                self.display_skill_queue(char_id)
-                self.display_orders(char_id)
-                self.display_industry_jobs(char_id)
-                self.separator()
+        for char_id in self.account.characters().result:
+            c = CharacterFactory.create_character(self.parentApp.api, char_id)
+
+            self.display_character(c)
+            self.update_character(c)
+            self.display_skill_queue(c)
+            self.update_skill_queue(c)
+            self.display_industry_jobs(c)
+            self.separator()
 
 
     def separator(self):
         self.add(npyscreen.FixedText, value="."*self.GRID_WIDTH, editable=False)
         self.add(npyscreen.FixedText, value=" "*self.GRID_WIDTH, editable=False)
 
-    def display_character(self, char_id):
 
-        char = evelink.char.Char(char_id, self.parentApp.api)
+    def update_character(self, character):
+        fields = self.character_fields[character.cid]
+        fields['name_corp'].value = "%s [%s]" % (character.name, character.corporation)
+        fields['age'].value = timestamp_to_string(character.age, True)
+        fields['location'].value = character.location
+        fields['balance'].value = character.get_balance_formatted()
+        fields['skillpoints'].value = character.skillpoints
+        fields['clone_skillpoints'].value = character.clone_skillpoints
 
-        character_sheet = char.character_sheet().result
-        character_info = evelink.eve.EVE(api=self.parentApp.api).character_info_from_id(char.char_id).result
+        # adjust height and set updated items
 
-        self.add(npyscreen.TitleFixedText, name="Name:", value="%s [%s]" % (character_sheet['name'], character_sheet['corp']['name']), editable=False )
-        self.add(npyscreen.TitleFixedText, name="Age:", value=timestamp_to_string(character_sheet['create_ts'], True), editable=False )
-        self.add(npyscreen.TitleFixedText, name="Location:", value=character_info['location'], editable=False )
+        #npyscreen.notify_wait(fields.keys())
+
+        items = character.get_skill_queue_items()
+        try:
+            fields['skill_queue'].height=len(items)+5
+            fields['skill_queue'].value = items
+        except:
+            pass
+
+        items = character.get_active_jobs_items()
+        try:
+            fields['active_jobs'].height=len(items)+3
+            fields['active_jobs'].value = items
+        except:
+            pass
+
+    def display_character(self, character):
+        fields = {}
+
+        # Basic information
+        fields['name_corp'] = self.add(npyscreen.TitleFixedText, name="Name:", editable=False)  #  static data
+        fields['age'] = self.add(npyscreen.TitleFixedText, name="Age:", editable=False)
+        fields['location'] = self.add(npyscreen.TitleFixedText, name="Location:", editable=False)
 
         # Balance
-        balance = int(character_sheet['balance'])
-        import locale
-        locale.setlocale(locale.LC_ALL, '')
-        balance = "{0:n} ISK".format(balance).replace(',', ' ')
-        self.add(npyscreen.TitleFixedText, name="Wallet:", value=balance, editable=False)
+        fields['balance'] = self.add(npyscreen.TitleFixedText, name="Wallet:", editable=False)
 
         # Skill points and clone
-        char_skillpoints = character_sheet['skillpoints']
-        char_clone_skillpoints = character_sheet['clone']['skillpoints']
-        self.add(npyscreen.TitleFixedText, name="Skillpoints:", value=char_skillpoints, editable=False)
-        self.add(npyscreen.TitleFixedText, name="Clone SP:", value=char_clone_skillpoints, editable=False)
+        fields['skillpoints'] = self.add(npyscreen.TitleFixedText, name="Skillpoints:", editable=False)
+        fields['clone_skillpoints'] = self.add(npyscreen.TitleFixedText, name="Clone SP:", editable=False)
 
-        # TODO: current training skill as slider
-        #self.add(npyscreen.TitleSlider, name="Spaceship Command  IV", value=58, editable=False, label=True)
-
-    def display_industry_jobs(self, char_id):
-        char = evelink.char.Char(char_id, self.parentApp.api)
-
-        active_jobs = [v for v in char.industry_jobs().result.values() if v['delivered'] == False]
-        if not active_jobs: return
+        self.character_fields[character.cid] = fields
 
 
-        items = []
+    def update_skill_queue(self, character):
+        items = character.get_skill_queue_items()
+        self.character_fields[character.cid]['skill_queue'].height = len(items)+3
+        self.character_fields[character.cid]['skill_queue'].value = items
+
+
+    def display_skill_queue(self, character):
+        titles = ['Skill', 'ETA', 'Finish']
+        #npyscreen.notify_wait("Before %s" % self.character_fields[character.cid].keys())
+        self.character_fields[character.cid]['skill_queue'] = self._display_grid(titles)
+        #npyscreen.notify_wait("After %s" % self.character_fields[character.cid].keys())
+        self.update_skill_queue(character)
+
+
+    def display_industry_jobs(self, character):
+        items = character.get_active_jobs_items()
+        if not items: return
         titles = ['Type', 'Item', 'ETA']
-
-        for job in active_jobs:
-            items.append([activityid_to_string(v['activity_id']),
-                         typeid_to_string(v['output']['type_id']),
-                         timestamp_to_string(v['end_ts'])])
-
-        self._display_grid(items, titles)
+        self.character_fields[character.cid]['active_jobs'] = self._display_grid(titles)
 
     def display_orders(self, char_id):
         char = evelink.char.Char(char_id, self.parentApp.api)
@@ -180,46 +274,24 @@ class CharacterSummary(npyscreen.ActionForm):
         total_isk = "{0:n} ISK".format(int(total_isk)).replace(',', ' ')
         self.add(npyscreen.TitleFixedText, name="Total:", value=total_isk, editable=False)
 
-
-    def display_skill_queue(self, char_id):
-        char = evelink.char.Char(char_id, self.parentApp.api)
-
-        items = []
-        titles = ['Skill', 'ETA', 'Finish']
-
-        for skill in char.skill_queue().result:
-            items.append(["%s %s" % (typeid_to_string(skill['type_id']), to_roman(skill['level'])),
-                                timestamp_to_string(skill['end_ts']),
-                                datetime.fromtimestamp(skill['end_ts'])])
-
-        self._display_grid(items, titles)
-
-
-    def _display_grid(self, items, titles):
-        gcol = self.add(npyscreen.GridColTitles,
+    def _display_grid(self, titles):
+        return self.add(npyscreen.GridColTitles,
                         col_titles=titles,
                         width=self.GRID_WIDTH,
-                        height=len(items)+3,
+                        height=3,
                         editable=False,
                         column_width=25)
 
-        gcol.values = items
-
-
-#        if char_clone_skillpoints < char_skillpoints:
-#            print("WARNING: CLONE UPDATE REQUIRED")
-
-
 class EveStatus(npyscreen.NPSAppManaged):
     index = 0
-    apikey = (2959322, 'dMkRERzI7inBlOE5ikUYbW2NitYnBK8fqHQLlgz68XXaagxNSyj5ItjAD2In1KxE')
     api = None
 
-    keypress_timeout_default = 50
+    keypress_timeout_default = 20
 
     def while_waiting(self):
         # app -level updates here
         pass
+
 
     def change_form(self, name):
         self.switchForm(name)
@@ -240,6 +312,7 @@ class EveStatus(npyscreen.NPSAppManaged):
         from evelink.cache.sqlite import SqliteCache
         evelink_cache = SqliteCache('db/evelink_cache.db')
 
+        # API with cache and correct api key
         self.api = evelink.api.API(api_key=apikey, cache=evelink_cache)
 
         self.addForm("MAIN", CharacterSummary, name="MAIN")
@@ -248,7 +321,40 @@ class EveStatus(npyscreen.NPSAppManaged):
     def onCleanExit(self):
         pass
 
+def class_test():
+    if not os.path.exists('config.yml'):
+        print("config.yml not found")
+        print("please edit config_example.yml and rename it to config.yml")
+        sys.exit(1)
+
+    import yaml
+    config = yaml.load(file('config.yml'))
+
+    print "Config loaded"
+
+    apikey = (config['key'], config['verification'])
+
+    from evelink.cache.sqlite import SqliteCache
+    evelink_cache = SqliteCache('db/evelink_cache.db')
+
+    # API with cache and correct api key
+    api = evelink.api.API(api_key=apikey, cache=evelink_cache)
+
+    print "API connected"
+
+    # account data
+    a = evelink.account.Account(api)
+
+    # loop through character id's in api
+    for char_id in a.characters().result:
+        print "Creating character", char_id
+        c = CharacterFactory.create_character(api, char_id)
+        print c.name
+        print c.get_skill_queue_items()
+        print c.get_active_jobs_items()
+
 
 if __name__ == '__main__':
+    #class_test()
     app = EveStatus()
     app.run()
