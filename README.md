@@ -26,3 +26,7 @@ display status of all characters on the linked API key
 
 
 Powered by [evelink by eve-val](https://github.com/eve-val/evelink)
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/lepinkainen/evetools/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
