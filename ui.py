@@ -122,6 +122,22 @@ class Character(object):
 
         return items
 
+    def get_active_orders(self):
+        items = []
+        total_isk = 0
+
+        import locale
+        locale.setlocale(locale.LC_ALL, '')
+
+        for order in self.active_orders:
+            total_isk += order['price'] * order['amount_left']
+            items.append([typeid_to_string(order['type_id']),
+                          "{0:n} ISK".format(order['price']).replace(',', ' '),
+                           order['amount_left']])
+
+        items.append(["TOTAL:", total_isk, ""])
+
+        return items
 
 
 class CharacterSummary(npyscreen.ActionForm):
@@ -170,12 +186,15 @@ class CharacterSummary(npyscreen.ActionForm):
         for char_id in self.account.characters().result:
             c = CharacterFactory.create_character(self.parentApp.api, char_id)
 
-            self.display_character(c)
-            self.update_character(c)
-            self.display_skill_queue(c)
-            self.update_skill_queue(c)
-            self.display_industry_jobs(c)
-            self.separator()
+            try:
+                self.display_character(c)
+                self.update_character(c)
+                self.display_skill_queue(c)
+                self.display_industry_jobs(c)
+                self.display_orders(c)
+                self.separator()
+            except npyscreen.wgwidget.NotEnoughSpaceForWidget:
+                break
 
 
     def separator(self):
@@ -231,54 +250,43 @@ class CharacterSummary(npyscreen.ActionForm):
     def update_skill_queue(self, character):
         items = character.get_skill_queue_items()
         self.character_fields[character.cid]['skill_queue'].height = len(items)+3
-        self.character_fields[character.cid]['skill_queue'].value = items
+        self.character_fields[character.cid]['skill_queue'].values = items
 
 
     def display_skill_queue(self, character):
         titles = ['Skill', 'ETA', 'Finish']
         #npyscreen.notify_wait("Before %s" % self.character_fields[character.cid].keys())
-        self.character_fields[character.cid]['skill_queue'] = self._display_grid(titles)
+        items = character.get_skill_queue_items()
+        self.character_fields[character.cid]['skill_queue'] = self._display_grid(titles, items)
         #npyscreen.notify_wait("After %s" % self.character_fields[character.cid].keys())
-        self.update_skill_queue(character)
+        #self.update_skill_queue(character)
 
 
     def display_industry_jobs(self, character):
         items = character.get_active_jobs_items()
         if not items: return
         titles = ['Type', 'Item', 'ETA']
-        self.character_fields[character.cid]['active_jobs'] = self._display_grid(titles)
+        self.character_fields[character.cid]['active_jobs'] = self._display_grid(titles, items)
 
-    def display_orders(self, char_id):
-        char = evelink.char.Char(char_id, self.parentApp.api)
-
-        active_orders = [order for id, order in char.orders().result.iteritems() if order['status'] == 'active']
-
-        if not active_orders: return
-
-        import locale
-        locale.setlocale(locale.LC_ALL, '')
-
-        total_isk = 0
-
-        items = []
+    def display_orders(self, character):
+        items = character.get_active_orders()
+        if len(items) < 2: return  # orders always has the TOTAL row
         titles = ['Item', 'à ISK', 'Amount']
+        self._display_grid(titles, items)
 
-        for order in active_orders:
-            total_isk += order['price'] * order['amount_left']
-            items.append([typeid_to_string(order['type_id']),
-                          "{0:n} ISK".format(order['price']).replace(',', ' '),
-                           order['amount_left']])
 
-        self._display_grid(items, titles)
+    def _display_grid(self, titles, values=None):
 
-        total_isk = "{0:n} ISK".format(int(total_isk)).replace(',', ' ')
-        self.add(npyscreen.TitleFixedText, name="Total:", value=total_isk, editable=False)
+        if values:
+            height = len(values)+3
+        else:
+            height = 3
 
-    def _display_grid(self, titles):
         return self.add(npyscreen.GridColTitles,
                         col_titles=titles,
                         width=self.GRID_WIDTH,
-                        height=3,
+                        values=values,
+                        height=height,
                         editable=False,
                         column_width=25)
 
