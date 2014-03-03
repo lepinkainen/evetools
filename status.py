@@ -152,12 +152,16 @@ def main(apikey):
 
     a = evelink.account.Account(api)
 
-    for char_id in a.characters().result:
-        print("-" * 30)
-        char = evelink.char.Char(char_id, api)
-        print_charactersheet(char, api)
-        print_industry_jobs(char, api)
-        print_orders(char, api)
+    try:
+        for char_id in a.characters().result:
+            print("-" * 30)
+            char = evelink.char.Char(char_id, api)
+            print_charactersheet(char, api)
+            print_industry_jobs(char, api)
+            print_orders(char, api)
+    except evelink.api.APIError, e:
+        print("Api Error:", e)
+
 
 
 if __name__ == "__main__":
