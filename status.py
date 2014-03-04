@@ -2,13 +2,14 @@
 
 from __future__ import unicode_literals, division, absolute_import, print_function
 
-import evelink
-import requests
-import dataset
 from datetime import datetime
 import sqlite3
 import os.path
 import sys
+
+import evelink
+import dataset
+
 from util import *
 
 DB_DIR = 'db'
@@ -30,8 +31,6 @@ if not os.path.exists(EVE_DB_PATH):
 
 conn = sqlite3.connect(EVE_DB_PATH) # Eve online static db
 db = dataset.connect("sqlite:///%s/evetools.db" % DB_DIR) # evetools cache db
-
-
 
 
 def dbquery(sql, uid):
@@ -77,25 +76,22 @@ def print_industry_jobs(char, api):
 
 def print_orders(char, api):
     """List active orders"""
-    
-    active_orders = [order for id, order in char.orders().result.iteritems() if order['status'] == 'active']
+
+    active_orders = [order for oid, order in char.orders().result.iteritems() if order['status'] == 'active']
 
     if not active_orders: return
 
-    print("Orders:")
-
-    import locale
-    locale.setlocale(locale.LC_ALL, '')
+    print("Orders (%d):" % len(active_orders))
 
     total_isk = 0
 
     for order in active_orders:
         total_isk += order['price'] * order['amount_left']
-        print("  %-50s  %14s %4d units" % (typeid_to_string(order['type_id']),
-                                                 "{0:n} ISK".format(order['price']).replace(',', ' '),
+        print("  %-50s  %17s %4d units" % (typeid_to_string(order['type_id']),
+                                                 format_currency(order['price']),
                                                  order['amount_left']))
 
-    print("Total: %10s" % "{0:n} ISK".format(int(total_isk)).replace(',', ' '))
+    print("Total: %s" % format_currency(total_isk))
 
 
 def print_assets(char, api):
@@ -120,10 +116,7 @@ def print_charactersheet(char, api):
 
     # Balance
     balance = int(character_sheet['balance'])
-    import locale
-    locale.setlocale(locale.LC_ALL, '')
-    balance = "{0:n} ISK".format(balance).replace(',', ' ')
-    print("Wallet:", balance)
+    print("Wallet:", format_currency(balance))
 
     # Skill points and clone
     char_skillpoints = character_sheet['skillpoints']
