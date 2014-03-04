@@ -1,4 +1,11 @@
 from datetime import datetime
+import locale
+locale.setlocale(locale.LC_ALL, '')
+
+
+def format_currency(number):
+    return "%s ISK" % (locale.currency(number, symbol=False, grouping=True).replace(",", " "))
+
 
 def to_roman(n):
     return ['I', 'II', 'III', 'IV', 'V'][n - 1]
