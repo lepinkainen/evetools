@@ -97,9 +97,7 @@ class Character(object):
     skill_queue = None
 
     def get_balance_formatted(self):
-        import locale
-        locale.setlocale(locale.LC_ALL, '')
-        return "{0:n} ISK".format(self.balance).replace(',', ' ')
+        return format_currency(self.balance)
 
 
     def get_skill_queue_items(self):
@@ -126,16 +124,13 @@ class Character(object):
         items = []
         total_isk = 0
 
-        import locale
-        locale.setlocale(locale.LC_ALL, '')
-
         for order in self.active_orders:
             total_isk += order['price'] * order['amount_left']
             items.append([typeid_to_string(order['type_id']),
-                          "{0:n} ISK".format(order['price']).replace(',', ' '),
+                          format_currency(order['price']),
                            order['amount_left']])
 
-        items.append(["TOTAL:", total_isk, ""])
+        items.append(["TOTAL:", format_currency(total_isk), ""])
 
         return items
 
