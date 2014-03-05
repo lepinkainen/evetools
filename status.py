@@ -3,6 +3,7 @@
 from __future__ import unicode_literals, division, absolute_import, print_function
 
 from datetime import datetime
+from dateutil.relativedelta import *
 import sqlite3
 import os.path
 import sys
@@ -78,8 +79,10 @@ def print_orders(char, api):
     """List active orders"""
 
     active_orders = [order for oid, order in char.orders().result.iteritems() if order['status'] == 'active']
-
     if not active_orders: return
+
+    # sort by timestamp, first ones to expire on top
+    active_orders = sorted(active_orders, key=lambda item: item['timestamp'], reverse=False)
 
     print("Orders (%d):" % len(active_orders))
 
@@ -87,9 +90,14 @@ def print_orders(char, api):
 
     for order in active_orders:
         total_isk += order['price'] * order['amount_left']
-        print("  %-50s  %17s %4d units" % (typeid_to_string(order['type_id']),
-                                                 format_currency(order['price']),
-                                                 order['amount_left']))
+
+        td = relativedelta((datetime.fromtimestamp(order['timestamp']) + relativedelta(days=order['duration'])), datetime.now())
+        tdstr = "%dd %dh %dm" % (td.days, td.hours, td.minutes)
+
+        print("  %-50s  %17s %4d units end: %s" % (typeid_to_string(order['type_id']),
+                                           format_currency(order['price']),
+                                           order['amount_left'],
+                                           tdstr))
 
     print("Total: %s" % format_currency(total_isk))
 
