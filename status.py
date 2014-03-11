@@ -139,10 +139,21 @@ def print_charactersheet(char, api):
     print("%29s %17s %19s" % (format("Skill", '^25'),
                               format("ETA", '^17'),
                               format("Finish", '^19')))
+    queue_length = relativedelta()
+    now = datetime.now()
+
     for skill in char.skill_queue().result:
+        end = datetime.fromtimestamp(skill['end_ts'])
+        delta = relativedelta(end, now)
+        queue_length += delta
+
         print("%30s %3s %17s %19s" % (typeid_to_string(skill['type_id']),
                                       to_roman(skill['level']),
-                                      timestamp_to_string(skill['end_ts']), datetime.fromtimestamp(skill['end_ts'])))
+                                      timestamp_to_string(skill['end_ts']),
+                                      datetime.fromtimestamp(skill['end_ts'])))
+
+    if queue_length.days == 0 and queue_length.hours < 24:
+        print("Free room in skill queue!")
 
 def main(apikey):
     from evelink.cache.sqlite import SqliteCache
