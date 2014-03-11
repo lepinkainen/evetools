@@ -67,7 +67,6 @@ def buy_price_from_evecentral(typeid):
             return float(pricedata.get("median"))
 
     # cached data not found, get it online
-    print("getting")
     import xml.etree.ElementTree as ET
     r = requests.get("http://api.eve-central.com/api/marketstat?typeid=%s" % typeid)
     xml = r.content
@@ -77,7 +76,7 @@ def buy_price_from_evecentral(typeid):
     avg_price = root.findall(".//buy/avg")[0].text
     min_price = root.findall(".//buy/min")[0].text
     max_price = root.findall(".//buy/max")[0].text
-    print("got")
+
     # cache
     table.upsert(dict(typeid=typeid,
                       median=float(median_price),
@@ -86,14 +85,17 @@ def buy_price_from_evecentral(typeid):
                       max=float(max_price),
                       timestamp=time.time()),
                  ['typeid'])
-    print("cached")
     return float(median_price)
 
 
 def print_assets(char, api):
+    assets = db['assets']
+
+    asset_data = []
+    grand_total = 0
+
     for k, v in char.assets().result.iteritems():
         print("Location: ", locationid_to_string(v['location_id']))
-        grand_total = 0
         for item in v['contents']:
             quantity = item['quantity']
             price_median = buy_price_from_evecentral(item['item_type_id'])
@@ -103,6 +105,19 @@ def print_assets(char, api):
 
             print("   %-53s %5d %10.2f ISK | %.2f ISK" % (typeid_to_string(item['item_type_id']), quantity, price_median, price_total))
 
+            asset_data.append(dict(char_id=char.char_id,
+                               container_id = None,
+                               container_name = None,
+                               location_id = v['location_id'],
+                               location_name = locationid_to_string(v['location_id']),
+                               type_id = item['item_type_id'],
+                               name = typeid_to_string(item['item_type_id']),
+                               quantity = quantity,
+                               price_median = price_median,
+                               timestamp=time.time()
+                               ))
+
+            # insert subitems if the item is a container
             for subitem in item.get('contents', []):
                 quantity = subitem['quantity']
                 price_median = buy_price_from_evecentral(subitem['item_type_id'])
@@ -110,9 +125,28 @@ def print_assets(char, api):
                 price_total = quantity * price_median
                 grand_total += price_total
 
+
+                asset_data.append(dict(char_id=char.char_id,
+                                   # parent item
+                                   container_id = item['item_type_id'],
+                                   container_name = typeid_to_string(item['item_type_id']),
+                                   # location of this item (And the parent of course)
+                                   location_id = v['location_id'],
+                                   location_name = locationid_to_string(v['location_id']),
+                                   # item ID, name, quantity and approximate price
+                                   type_id = subitem['item_type_id'],
+                                   name = typeid_to_string(subitem['item_type_id']),
+                                   quantity = quantity,
+                                   price_median = price_median,
+                                   timestamp=time.time()
+                                   ))
+
                 print("      %-50s %5d %10.2f ISK | %.2f ISK" % (typeid_to_string(subitem['item_type_id']), subitem['quantity'], price_median, price_total))
 
-        return grand_total
+    assets.insert_many(asset_data)
+
+    return grand_total
+
 
 def main(apikey):
     from evelink.cache.sqlite import SqliteCache
@@ -122,6 +156,10 @@ def main(apikey):
                           cache=evelink_cache)
 
     a = evelink.account.Account(api)
+
+    # clear the table, makes easier to keep it up to date
+    # updating would work, but removing items that no longer exists is a pain
+    db['assets'].drop()
 
     try:
         for char_id in a.characters().result:
