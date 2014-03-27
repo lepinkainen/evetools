@@ -25,7 +25,7 @@ display status of all characters on the linked API key
 * Market Orders
 
 
-Powered by [evelink by eve-val](https://github.com/eve-val/evelink)
+Powered by [evelink by eve-val](https://github.com/eve-val/evelink) and [Zofu's sqlite dump](http://zofu.no-ip.de/)
 
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/lepinkainen/evetools/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
