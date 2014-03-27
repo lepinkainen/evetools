@@ -18,14 +18,14 @@ DB_DIR = 'db'
 if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
 
-EVE_DB = 'rub11-sqlite3-v1.db'
+EVE_DB = 'rub112-sqlite3-v1.db'
 EVE_DB_PATH = os.path.join(DB_DIR, EVE_DB)
 
 # Make sure the static db exists
 if not os.path.exists(EVE_DB_PATH):
     print("Please download the latest database by running the following commands:")
     print("cd db")
-    print("wget http://zofu.no-ip.de/rub11/%s.bz2" % EVE_DB)
+    print("wget http://zofu.no-ip.de/rub112/%s.bz2" % EVE_DB)
     print("bunzip2 %s.bz2" % EVE_DB)
     sys.exit(1)
 
@@ -143,14 +143,22 @@ def print_charactersheet(char, api):
     now = datetime.now()
 
     for skill in char.skill_queue().result:
-        end = datetime.fromtimestamp(skill['end_ts'])
-        delta = relativedelta(end, now)
-        queue_length += delta
+        if skill['end_ts']:
+            end = datetime.fromtimestamp(skill['end_ts'])
+            delta = relativedelta(end, now)
+            queue_length += delta
+
+            eta = timestamp_to_string(skill['end_ts'])
+            finish = datetime.fromtimestamp(skill['end_ts'])
+        else:
+            eta = "None"
+            finish = "Never"
+            queue_length=relativedelta(hours=+72)
 
         print("%30s %3s %17s %19s" % (typeid_to_string(skill['type_id']),
                                       to_roman(skill['level']),
-                                      timestamp_to_string(skill['end_ts']),
-                                      datetime.fromtimestamp(skill['end_ts'])))
+                                      eta,
+                                      finish))
 
     if queue_length.days == 0 and queue_length.hours < 24:
         print("Free room in skill queue!")
