@@ -194,4 +194,9 @@ if __name__ == "__main__":
     import yaml
     config = yaml.load(file('config.yml'))
 
-    main((config['key'], config['verification']))
+    # Just one account specified
+    if 'key' in config and 'verification' in config:
+        main((config['key'], config['verification']))
+    else:
+        for account in config.keys():
+            main((config[account]['key'], config[account]['verification']))
