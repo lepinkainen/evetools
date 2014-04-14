@@ -1,3 +1,12 @@
 # API Key and verification code from https://community.eveonline.com/support/api-key/
-key: KEY ID
-verification: VERIFICATION CODE
+## Single account ##
+key: KEY_ID
+verification: VERIFICATION_CODE
+
+## Multiple accounts ##
+account_name:  # just pick something
+  key: KEY_ID
+  verification: VERIFICATION_CODE
+another_account:
+  key: KEY_ID
+  verification: VERIFICATION_CODE
