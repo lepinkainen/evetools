@@ -145,6 +145,9 @@ def print_charactersheet(char, api):
     for skill in char.skill_queue().result:
         if skill['end_ts']:
             end = datetime.fromtimestamp(skill['end_ts'])
+            # skip skills that have already been trained , but are in the cache
+            if end < now: continue
+
             delta = relativedelta(end, now)
             queue_length += delta
 
