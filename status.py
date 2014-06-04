@@ -18,6 +18,7 @@ DB_DIR = 'db'
 if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
 
+# latest zofu's db dump
 EVE_DB = 'rub112-sqlite3-v1.db'
 EVE_DB_PATH = os.path.join(DB_DIR, EVE_DB)
 
@@ -40,7 +41,10 @@ def dbquery(sql, uid):
     c.execute(sql % uid)
     res = c.fetchone()
     c.close()
-    return res[0]
+    if res:
+        return res[0]
+    else:
+        return "Unknown(%d)" % uid
 
 
 def activityid_to_string(uid):
@@ -94,10 +98,11 @@ def print_orders(char, api):
         td = relativedelta((datetime.fromtimestamp(order['timestamp']) + relativedelta(days=order['duration'])), datetime.now())
         tdstr = "%dd %dh %dm" % (td.days, td.hours, td.minutes)
 
-        print("  %-50s  %17s %4d units end: %s" % (typeid_to_string(order['type_id']),
-                                           format_currency(order['price']),
-                                           order['amount_left'],
-                                           tdstr))
+        msg = (u"  %-50s  %17s %4d units end: %s" % (typeid_to_string(order['type_id']),
+                                                     format_currency(order['price']),
+                                                     order['amount_left'],
+                                                     tdstr))
+        print(msg.encode('utf-8'))
 
     print("Total: %s" % format_currency(total_isk))
 
