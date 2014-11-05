@@ -19,17 +19,17 @@ if not os.path.exists(DB_DIR):
     os.mkdir(DB_DIR)
 
 # latest zofu's db dump
-EVE_DB = 'rub112-sqlite3-v1.db'
+#EVE_DB = 'rub112-sqlite3-v1.db'
+EVE_DB = 'sqlite-latest.sqlite'
 EVE_DB_PATH = os.path.join(DB_DIR, EVE_DB)
 
 # Make sure the static db exists
 if not os.path.exists(EVE_DB_PATH):
     print("Please download the latest database by running the following commands:")
     print("cd db")
-    print("wget http://zofu.no-ip.de/rub112/%s.bz2" % EVE_DB)
+    print("https://www.fuzzwork.co.uk/dump/sqlite-latest.sqlite.bz2")
     print("bunzip2 %s.bz2" % EVE_DB)
     sys.exit(1)
-
 
 conn = sqlite3.connect(EVE_DB_PATH) # Eve online static db
 db = dataset.connect("sqlite:///%s/evetools.db" % DB_DIR) # evetools cache db
