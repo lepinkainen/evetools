@@ -143,6 +143,9 @@ def print_charactersheet(char, api):
     # Skill queue
     skill_queue = char.skill_queue().result
 
+    # Don't print empty or paused skill queue
+    if not skill_queue[0]['end_ts']: return
+
     if len(skill_queue) > 5:
         print("Skill queue (%d skills total): " % len(skill_queue))
     else:
