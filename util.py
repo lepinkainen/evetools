@@ -4,7 +4,11 @@ locale.setlocale(locale.LC_ALL, '')
 
 
 def format_currency(number):
-    return "%s ISK" % (locale.currency(number, symbol=False, grouping=True).replace(",", " "))
+    #msg = "%s ISK" % (locale.currency(number, symbol=False, grouping=True).replace(",", " "))
+    
+    msg = "%s ISK" % number
+        
+    return msg
 
 
 def to_roman(n):
