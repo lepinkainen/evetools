@@ -66,8 +66,9 @@ def print_contracts(char, api):
 
 def print_industry_jobs(char, api):
     """List active industry jobs"""
-    active_jobs = [v for v in char.industry_jobs().result.values() if v['delivered'] == False and v['status'] != "failed"]
+    #active_jobs = [v for v in char.industry_jobs().result.values() if v['delivered'] == False and v['status'] != "failed"]
 
+    active_jobs = None
     if not active_jobs: return
 
     print("Industry Jobs:")
@@ -140,14 +141,19 @@ def print_charactersheet(char, api):
         print("WARNING: CLONE UPDATE REQUIRED")
 
     # Skill queue
-    print("Skill queue: ")
+    skill_queue = char.skill_queue().result
+
+    if len(skill_queue) > 5:
+        print("Skill queue (%d skills total): " % len(skill_queue))
+    else:
+        print("Skill queue: ")
     print("%29s %17s %19s" % (format("Skill", '^25'),
                               format("ETA", '^17'),
                               format("Finish", '^19')))
     queue_length = relativedelta()
     now = datetime.now()
 
-    for skill in char.skill_queue().result:
+    for skill in skill_queue[:5]:
         if skill['end_ts']:
             end = datetime.fromtimestamp(skill['end_ts'])
             # skip skills that have already been trained , but are in the cache
