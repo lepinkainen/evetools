@@ -132,14 +132,6 @@ def print_charactersheet(char, api):
     balance = int(character_sheet['balance'])
     print("Wallet:", format_currency(balance))
 
-    # Skill points and clone
-    char_skillpoints = character_sheet['skillpoints']
-    char_clone_skillpoints = character_sheet['clone']['skillpoints']
-    print("Skillpoints:", char_skillpoints)
-    print("Clone Skillpoints:", char_clone_skillpoints)
-    if char_clone_skillpoints < char_skillpoints:
-        print("WARNING: CLONE UPDATE REQUIRED")
-
     # Skill queue
     skill_queue = char.skill_queue().result
 
